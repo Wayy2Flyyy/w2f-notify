@@ -87,7 +87,7 @@ body {
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: radial-gradient(120% 140% at 0% 50%, color-mix(in srgb, var(--nf-accent) 16%, transparent) 0%, transparent 55%);
+    background: radial-gradient(120% 140% at 0% 50%, var(--nf-accent-glow) 0%, transparent 55%);
     pointer-events: none;
 }
 
@@ -101,8 +101,8 @@ body {
     width: 38px;
     height: 38px;
     border-radius: 11px;
-    background: color-mix(in srgb, var(--nf-accent) 14%, transparent);
-    border: 1px solid color-mix(in srgb, var(--nf-accent) 35%, transparent);
+    background: var(--nf-accent-soft);
+    border: 1px solid var(--nf-accent-border);
     color: var(--nf-icon-color, var(--nf-accent));
 }
 
@@ -197,7 +197,7 @@ body {
     height: 100%;
     width: 100%;
     transform-origin: left;
-    background: linear-gradient(90deg, var(--nf-accent), color-mix(in srgb, var(--nf-accent) 55%, #ffffff));
+    background: linear-gradient(90deg, var(--nf-accent), var(--nf-accent-bright));
     box-shadow: 0 0 8px var(--nf-accent);
     animation: nf-progress linear forwards;
 }

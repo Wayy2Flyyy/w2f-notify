@@ -10,8 +10,10 @@ Config = {}
 ──────────────────────────────────────────────────────────────────── ]]
 Config.Framework = 'auto'
 
--- Intercept the framework's default notification events and render them
--- through w2f-notfy instead. Disable if you only want the exports/events.
+-- Listen to the framework's default notification events and render them
+-- through w2f-notfy as well. NOTE: the framework's own UI may still draw
+-- those events too — see the "Framework integration" section of the README
+-- to fully replace it (then set this to false to avoid double rendering).
 Config.OverrideNotifications = true
 
 --[[ ────────────────────────────────────────────────────────────────────

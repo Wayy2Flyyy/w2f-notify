@@ -106,9 +106,34 @@ With `Config.Debug = true`:
 /notfy info glitch      → preview a specific animation
 ```
 
-## ⚙️ Framework notes
+## ⚙️ Framework integration
 
-- **Qbox** — listens to `ox_lib:notify`, so anything qbox sends through ox_lib server-side is restyled. Client-side `lib.notify()` calls inside other resources render through ox_lib's own UI and can't be intercepted.
-- **QBCore** — handles `QBCore:Notify` (string or `{text, caption}` table) including `primary/success/error/police/ambulance` types.
-- **ESX** — handles `esx:showNotification` and `esx:showAdvancedNotification`.
-- **Standalone** — set `Config.Framework = 'standalone'` (or just leave `auto` with no framework running) and use the exports/events.
+`Config.OverrideNotifications = true` makes w2f-notfy listen to your framework's notification **events** (`ox_lib:notify`, `QBCore:Notify`, `esx:showNotification`). The framework's own UI may still render those events too — to fully *replace* it, redirect the framework's notify function at the source and set `Config.OverrideNotifications = false`:
+
+### QBCore
+Replace the body of `QBCore.Functions.Notify` in `qb-core/client/functions.lua`:
+
+```lua
+function QBCore.Functions.Notify(text, textType, length)
+    if type(text) == 'table' then
+        exports['w2f-notfy']:Notify({ title = text.caption, description = text.text, type = textType, duration = length })
+    else
+        exports['w2f-notfy']:Notify({ description = text, type = textType, duration = length })
+    end
+end
+```
+
+### ESX
+Replace the body of `ESX.ShowNotification` in `es_extended/client/functions.lua` (or point `esx_notify` at the export):
+
+```lua
+function ESX.ShowNotification(message, notifyType, length)
+    exports['w2f-notfy']:Notify({ description = message, type = notifyType, duration = length })
+end
+```
+
+### Qbox / ox_lib
+Server-sent notifications travel over the `ox_lib:notify` event, which w2f-notfy picks up automatically — but ox_lib renders its own UI for the same event, so you'd see both. Either keep ox_lib's visuals (set `Config.OverrideNotifications = false`), or redirect `lib.notify` by editing `ox_lib/resource/interface/client/notify.lua` to forward to `exports['w2f-notfy']:Notify`.
+
+### Standalone
+Set `Config.Framework = 'standalone'` (or leave `auto` with no framework running) and use the exports/events directly.
