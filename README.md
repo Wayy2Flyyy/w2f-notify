@@ -3,6 +3,11 @@
 A sleek, modern, fully animated notification system for FiveM.
 Standalone with drop-in bridges for **Qbox**, **ESX** and **QBCore** — every notification renders as a smooth animation.
 
+<img width="3200" height="1800" alt="previewtypes" src="https://github.com/user-attachments/assets/2cf94bac-f481-4dad-a668-5268ea405bb4" />
+<img width="3200" height="1800" alt="previewpositions" src="https://github.com/user-attachments/assets/e30de83a-a881-4dff-9556-9b9a7ed0e2df" />
+<img width="900" height="506" alt="previewanimations" src="https://github.com/user-attachments/assets/76c8ef8f-5216-44df-96f8-ca98a1e4c27f" />
+
+
 ## ✨ Features
 
 - **6 animation styles** — `slide` (direction-aware), `pop`, `bounce`, `flip`, `glitch`, `fade` — independently configurable for enter & exit, globally or per notification
