@@ -1,4 +1,4 @@
-# w2f-notfy
+# w2f-notify
 
 A sleek, modern, fully animated notification system for FiveM.
 Standalone with drop-in bridges for **Qbox**, **ESX** and **QBCore** — every notification renders as a smooth animation.
