@@ -2,7 +2,7 @@ fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
 
-name 'w2f-notfy'
+name 'w2f-notify'
 author 'Wayy2Flyyy'
 description 'Advanced animated notification system — standalone, qbox, esx & qbcore'
 version '1.0.0'

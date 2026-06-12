@@ -18,6 +18,7 @@
 body {
     overflow: hidden;
     user-select: none;
+    background: transparent;
 }
 
 /* ── Position containers ─────────────────────────────────────────── */
@@ -29,7 +30,7 @@ body {
     gap: 10px;
     padding: 24px;
     pointer-events: none;
-    z-index: 1000;
+    z-index: 9999;
 }
 
 .notfy-container[data-pos="top-left"]      { top: 0; left: 0; }
@@ -56,7 +57,7 @@ body {
     display: flex;
     align-items: center;
     gap: 13px;
-    width: var(--nf-width);
+    width: min(var(--nf-width), calc(100vw - 48px));
     padding: 14px 16px 16px 14px;
     background: var(--nf-bg);
     backdrop-filter: blur(var(--nf-blur));
@@ -177,6 +178,12 @@ body {
     overflow-wrap: break-word;
 }
 
+.notfy-title em,
+.notfy-desc em {
+    font-style: italic;
+}
+
+.notfy-title strong,
 .notfy-desc strong {
     color: var(--nf-title-color);
     font-weight: 600;

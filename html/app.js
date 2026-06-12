@@ -1,6 +1,6 @@
 const ICONS = {
-    check: '<svg viewBox="0 0 24 24"><polyline points="4.5 12.5 9.5 17.5 19.5 6.5"/></svg>',
-    cross: '<svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>',
+    check: '<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+    cross: '<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
     info: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.5" x2="12" y2="7.6"/></svg>',
     warning: '<svg viewBox="0 0 24 24"><path d="M12 3.5 21.5 20h-19L12 3.5z"/><line x1="12" y1="10" x2="12" y2="14.5"/><line x1="12" y1="17" x2="12" y2="17.1"/></svg>',
     bell: '<svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2.5 7.5-2.5 7.5h17S18 15 18 9"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/></svg>',
@@ -15,10 +15,11 @@ const SLIDE_VECTORS = {
     'center-right':  { x: '110%', y: '0' },
     'bottom-right':  { x: '110%', y: '0' },
     'top-center':    { x: '0', y: '-140%' },
-    'center':        { x: '0', y: '-140%' },
+    center:          { x: '0', y: '-140%' },
     'bottom-center': { x: '0', y: '140%' },
 };
 
+const ANIMATIONS = new Set(['slide', 'pop', 'bounce', 'flip', 'glitch', 'fade']);
 const containers = {};
 const active = new Map();   // id → { wrap, card, data, timer }
 const queues = {};          // position → pending payloads
@@ -40,45 +41,95 @@ function getContainer(position) {
     return containers[position];
 }
 
+function clampNumber(value, fallback, min, max) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return fallback;
+    return Math.min(max, Math.max(min, Math.floor(number)));
+}
+
+function normalizeAnimation(animation) {
+    let enter = 'slide';
+    let exit = 'slide';
+
+    if (typeof animation === 'string') {
+        enter = animation;
+        exit = animation;
+    } else if (animation && typeof animation === 'object') {
+        enter = animation.enter || enter;
+        exit = animation.exit || exit;
+    }
+
+    return {
+        enter: ANIMATIONS.has(enter) ? enter : 'slide',
+        exit: ANIMATIONS.has(exit) ? exit : 'slide',
+    };
+}
+
+function normalizePayload(payload) {
+    const data = payload && typeof payload === 'object' ? payload : { description: String(payload ?? '') };
+    const position = SLIDE_VECTORS[data.position] ? data.position : 'top-right';
+    const duration = clampNumber(data.duration, 5000, 0, 86_400_000);
+
+    return {
+        id: String(data.id || `nui_${Date.now()}_${Math.random().toString(16).slice(2)}`),
+        type: String(data.type || 'info'),
+        title: data.title == null ? '' : String(data.title),
+        description: data.description == null ? '' : String(data.description),
+        duration,
+        position,
+        color: typeof data.color === 'string' ? data.color : '#60a5fa',
+        icon: data.icon == null ? 'bell' : String(data.icon),
+        iconColor: data.iconColor == null ? '' : String(data.iconColor),
+        animation: normalizeAnimation(data.animation),
+        progress: data.progress !== false,
+        maxVisible: clampNumber(data.maxVisible, maxVisible, 1, 20),
+        newest: data.newest === 'bottom' ? 'bottom' : 'top',
+        theme: data.theme && typeof data.theme === 'object' ? data.theme : {},
+    };
+}
+
 function applyTheme(theme) {
-    if (!theme) return;
+    if (!theme || typeof theme !== 'object') return;
     const root = document.documentElement.style;
-    if (theme.background) root.setProperty('--nf-bg', theme.background);
-    if (theme.blur != null) root.setProperty('--nf-blur', `${theme.blur}px`);
-    if (theme.radius != null) root.setProperty('--nf-radius', `${theme.radius}px`);
-    if (theme.width != null) root.setProperty('--nf-width', `${theme.width}px`);
-    if (theme.titleColor) root.setProperty('--nf-title-color', theme.titleColor);
-    if (theme.bodyColor) root.setProperty('--nf-body-color', theme.bodyColor);
-    if (theme.fontTitle) root.setProperty('--nf-font-title', theme.fontTitle);
-    if (theme.fontBody) root.setProperty('--nf-font-body', theme.fontBody);
+    if (typeof theme.background === 'string') root.setProperty('--nf-bg', theme.background);
+    if (theme.blur != null) root.setProperty('--nf-blur', `${clampNumber(theme.blur, 14, 0, 64)}px`);
+    if (theme.radius != null) root.setProperty('--nf-radius', `${clampNumber(theme.radius, 14, 0, 48)}px`);
+    if (theme.width != null) root.setProperty('--nf-width', `${clampNumber(theme.width, 340, 220, 720)}px`);
+    if (typeof theme.titleColor === 'string') root.setProperty('--nf-title-color', theme.titleColor);
+    if (typeof theme.bodyColor === 'string') root.setProperty('--nf-body-color', theme.bodyColor);
+    if (typeof theme.fontTitle === 'string') root.setProperty('--nf-font-title', theme.fontTitle);
+    if (typeof theme.fontBody === 'string') root.setProperty('--nf-font-body', theme.fontBody);
 }
 
 function escapeHtml(str) {
     return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 // minimal markdown: **bold**, *italic*, newlines
 function formatText(str) {
     return escapeHtml(str)
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/(^|\s)\*([^*]+?)\*/g, '$1<em>$2</em>')
         .replace(/\n/g, '<br>');
 }
 
 // parse any CSS color to [r, g, b] — avoids color-mix(), which older CEF builds lack
 const colorCtx = document.createElement('canvas').getContext('2d');
 function parseColor(color) {
+    if (!colorCtx || typeof color !== 'string') return [96, 165, 250];
     colorCtx.fillStyle = '#60a5fa';
     colorCtx.fillStyle = color;
-    const v = colorCtx.fillStyle;
-    if (v.startsWith('#')) {
-        return [parseInt(v.slice(1, 3), 16), parseInt(v.slice(3, 5), 16), parseInt(v.slice(5, 7), 16)];
+    const value = colorCtx.fillStyle;
+    if (value.startsWith('#') && value.length === 7) {
+        return [parseInt(value.slice(1, 3), 16), parseInt(value.slice(3, 5), 16), parseInt(value.slice(5, 7), 16)];
     }
-    const m = v.match(/[\d.]+/g);
-    return m ? [+m[0], +m[1], +m[2]] : [96, 165, 250];
+    const match = value.match(/[\d.]+/g);
+    return match ? [+match[0], +match[1], +match[2]] : [96, 165, 250];
 }
 
 function applyAccent(el, color) {
@@ -87,22 +138,27 @@ function applyAccent(el, color) {
     el.style.setProperty('--nf-accent-soft', `rgba(${r}, ${g}, ${b}, 0.14)`);
     el.style.setProperty('--nf-accent-border', `rgba(${r}, ${g}, ${b}, 0.35)`);
     el.style.setProperty('--nf-accent-glow', `rgba(${r}, ${g}, ${b}, 0.16)`);
-    const mix = (c) => Math.round(c + (255 - c) * 0.45);
+    const mix = (channel) => Math.round(channel + (255 - channel) * 0.45);
     el.style.setProperty('--nf-accent-bright', `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`);
 }
 
-function renderIcon(icon, accent, iconColor) {
+function isImageUrl(icon) {
+    return /^(https?:|nui:|data:image\/)/i.test(icon);
+}
+
+function renderIcon(icon, iconColor) {
     const wrap = document.createElement('div');
     wrap.className = 'notfy-icon';
     if (iconColor) wrap.style.setProperty('--nf-icon-color', iconColor);
 
-    if (icon && ICONS[icon]) {
+    if (ICONS[icon]) {
         wrap.innerHTML = ICONS[icon];
-    } else if (icon && icon.trim().startsWith('<svg')) {
+    } else if (icon.trim().startsWith('<svg') && icon.trim().endsWith('</svg>')) {
         wrap.innerHTML = icon;
-    } else if (icon && /^(https?:|nui:|data:)/.test(icon)) {
+    } else if (isImageUrl(icon)) {
         const img = document.createElement('img');
         img.src = icon;
+        img.alt = '';
         wrap.appendChild(img);
     } else {
         wrap.innerHTML = ICONS.bell;
@@ -119,11 +175,11 @@ function buildCard(data) {
     card.style.setProperty('--slide-x', vec.x);
     card.style.setProperty('--slide-y', vec.y);
 
-    if (data.theme && data.theme.accentGlow) card.classList.add('has-glow');
+    if (data.theme.accentGlow) card.classList.add('has-glow');
     if (data.type === 'error') card.classList.add('nf-shake');
 
-    const icon = renderIcon(data.icon, data.color, data.iconColor);
-    if (data.theme && data.theme.iconPulse) icon.classList.add('has-pulse');
+    const icon = renderIcon(data.icon, data.iconColor);
+    if (data.theme.iconPulse) icon.classList.add('has-pulse');
     card.appendChild(icon);
 
     const content = document.createElement('div');
@@ -138,6 +194,12 @@ function buildCard(data) {
         const desc = document.createElement('div');
         desc.className = 'notfy-desc';
         desc.innerHTML = formatText(data.description);
+        content.appendChild(desc);
+    }
+    if (!data.title && !data.description) {
+        const desc = document.createElement('div');
+        desc.className = 'notfy-desc';
+        desc.textContent = 'Notification';
         content.appendChild(desc);
     }
     card.appendChild(content);
@@ -155,13 +217,34 @@ function buildCard(data) {
     return card;
 }
 
-function show(data) {
-    if (!SLIDE_VECTORS[data.position]) data.position = 'top-right';
+function dequeue(position) {
+    const next = queues[position] && queues[position].shift();
+    if (next) mount(next);
+}
+
+function removeQueued(id) {
+    for (const position of Object.keys(queues)) {
+        const index = queues[position].findIndex((item) => item.id === id);
+        if (index !== -1) return queues[position].splice(index, 1)[0];
+    }
+    return null;
+}
+
+function show(payload) {
+    const data = normalizePayload(payload);
     applyTheme(data.theme);
-    maxVisible = data.maxVisible || maxVisible;
-    newestFirst = (data.newest || 'top') === 'top';
+    maxVisible = data.maxVisible;
+    newestFirst = data.newest === 'top';
 
     getContainer(data.position);
+
+    if (active.has(data.id)) {
+        updateCard(data);
+        return;
+    }
+
+    const queued = removeQueued(data.id);
+    if (queued) Object.assign(queued, data);
 
     if (visibleCount[data.position] >= maxVisible) {
         queues[data.position].push(data);
@@ -173,7 +256,6 @@ function show(data) {
 function mount(data) {
     const container = getContainer(data.position);
 
-    // replace an existing notification with the same id
     if (active.has(data.id)) {
         updateCard(data);
         return;
@@ -202,9 +284,14 @@ function mount(data) {
     }
 }
 
-function updateCard(data) {
+function updateCard(payload) {
+    const data = normalizePayload(payload);
     const entry = active.get(data.id);
-    if (!entry) return;
+    if (!entry) {
+        const queued = removeQueued(data.id);
+        if (queued) Object.assign(queued, data);
+        return;
+    }
 
     const fresh = buildCard(data);
     fresh.classList.remove(`nf-enter-${data.animation.enter}`);
@@ -214,12 +301,19 @@ function updateCard(data) {
     entry.data = data;
 
     if (entry.timer) clearTimeout(entry.timer);
+    entry.timer = null;
     if (data.duration > 0) {
         entry.timer = setTimeout(() => dismiss(data.id), data.duration);
     }
 }
 
 function dismiss(id) {
+    id = String(id || '');
+    if (!id) return;
+
+    const queued = removeQueued(id);
+    if (queued) return;
+
     const entry = active.get(id);
     if (!entry) return;
     active.delete(id);
@@ -244,8 +338,7 @@ function dismiss(id) {
         setTimeout(() => {
             wrap.remove();
             visibleCount[data.position] = Math.max(0, visibleCount[data.position] - 1);
-            const next = queues[data.position].shift();
-            if (next) mount(next);
+            dequeue(data.position);
         }, 300);
     };
 
@@ -265,13 +358,15 @@ window.addEventListener('message', ({ data: msg }) => {
             show(msg.data);
             break;
         case 'update':
-            if (active.has(msg.data.id)) updateCard(msg.data);
+            if (msg.data && msg.data.id) updateCard(msg.data);
             break;
         case 'hide':
-            dismiss(msg.data.id);
+            if (msg.data && msg.data.id) dismiss(msg.data.id);
             break;
         case 'clear':
             clearAll();
+            break;
+        default:
             break;
     }
 });

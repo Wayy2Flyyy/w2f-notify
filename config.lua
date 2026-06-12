@@ -11,7 +11,7 @@ Config = {}
 Config.Framework = 'auto'
 
 -- Listen to the framework's default notification events and render them
--- through w2f-notfy as well. NOTE: the framework's own UI may still draw
+-- through w2f-notify as well. NOTE: the framework's own UI may still draw
 -- those events too — see the "Framework integration" section of the README
 -- to fully replace it (then set this to false to avoid double rendering).
 Config.OverrideNotifications = true
@@ -102,4 +102,4 @@ Config.Sounds = true -- master toggle for notification sounds
     DEBUG
     Adds the /notfy command to preview every type & animation in game.
 ──────────────────────────────────────────────────────────────────── ]]
-Config.Debug = true
+Config.Debug = false

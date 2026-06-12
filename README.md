@@ -23,14 +23,16 @@ Standalone with drop-in bridges for **Qbox**, **ESX** and **QBCore** — every n
 
 ## 📦 Installation
 
-1. Drop the resource into your `resources` folder as `w2f-notfy`
+1. Drop the resource into your `resources` folder as `w2f-notify`
 2. Add to your `server.cfg`:
    ```cfg
-   ensure w2f-notfy
+   ensure w2f-notify
    ```
 3. (Optional) tweak `config.lua` — framework, position, animations, theme, types, sounds
 
 That's it. With `Config.OverrideNotifications = true` your framework's existing notifications instantly use the new design — no script edits needed.
+
+> Upgrading from the original `w2f-notfy` release? Legacy event names still work, but new installs should use `w2f-notify` consistently.
 
 ## 🚀 Usage
 
@@ -38,10 +40,10 @@ That's it. With `Config.OverrideNotifications = true` your framework's existing 
 
 ```lua
 -- simple
-exports['w2f-notfy']:Notify('Money received!')
+exports['w2f-notify']:Notify('Money received!')
 
 -- full control
-exports['w2f-notfy']:Notify({
+exports['w2f-notify']:Notify({
     type        = 'success',            -- success | error | info | warning | police
     title       = 'Bank',
     description = 'You received **$5,000**',
@@ -54,33 +56,36 @@ exports['w2f-notfy']:Notify({
 })
 
 -- shorthands
-exports['w2f-notfy']:Success('Vehicle stored')
-exports['w2f-notfy']:Error('Not enough money')
-exports['w2f-notfy']:Info('Press E to interact')
-exports['w2f-notfy']:Warning('Engine overheating')
+exports['w2f-notify']:Success('Vehicle stored')
+exports['w2f-notify']:Error('Not enough money')
+exports['w2f-notify']:Info('Press E to interact')
+exports['w2f-notify']:Warning('Engine overheating')
 
 -- live updates (Notify returns the id)
-local id = exports['w2f-notfy']:Notify({ title = 'Crafting', description = 'Working…', duration = 0 })
-exports['w2f-notfy']:Update(id, { type = 'success', title = 'Crafting', description = 'Done!', duration = 3000 })
-exports['w2f-notfy']:Hide(id)
-exports['w2f-notfy']:Clear()
+local id = exports['w2f-notify']:Notify({ title = 'Crafting', description = 'Working…', duration = 0 })
+exports['w2f-notify']:Update(id, { type = 'success', title = 'Crafting', description = 'Done!', duration = 3000 })
+exports['w2f-notify']:Hide(id)
+exports['w2f-notify']:Clear()
 ```
 
 ### Server
 
 ```lua
-exports['w2f-notfy']:Notify(source, { type = 'info', title = 'Server', description = 'Welcome!' })
-exports['w2f-notfy']:NotifyAll({ type = 'warning', description = 'Restart in **5 minutes**' })
+exports['w2f-notify']:Notify(source, { type = 'info', title = 'Server', description = 'Welcome!' })
+exports['w2f-notify']:NotifyAll({ type = 'warning', description = 'Restart in **5 minutes**' })
+exports['w2f-notify']:Update(source, 'crafting_42', { type = 'success', description = 'Done!', duration = 3000 })
+exports['w2f-notify']:Hide(source, 'crafting_42')
+exports['w2f-notify']:Clear(source)
 ```
 
 ### Events
 
 ```lua
 -- client
-TriggerEvent('w2f-notfy:notify', { type = 'success', description = 'Done' })
+TriggerEvent('w2f-notify:notify', { type = 'success', description = 'Done' })
 
 -- server → client
-TriggerClientEvent('w2f-notfy:notify', source, { type = 'error', description = 'Denied' })
+TriggerClientEvent('w2f-notify:notify', source, { type = 'error', description = 'Denied' })
 ```
 
 ## 🎬 Animations
@@ -108,7 +113,7 @@ With `Config.Debug = true`:
 
 ## ⚙️ Framework integration
 
-`Config.OverrideNotifications = true` makes w2f-notfy listen to your framework's notification **events** (`ox_lib:notify`, `QBCore:Notify`, `esx:showNotification`). The framework's own UI may still render those events too — to fully *replace* it, redirect the framework's notify function at the source and set `Config.OverrideNotifications = false`:
+`Config.OverrideNotifications = true` makes w2f-notify listen to your framework's notification **events** (`ox_lib:notify`, `QBCore:Notify`, `esx:showNotification`). The framework's own UI may still render those events too — to fully *replace* it, redirect the framework's notify function at the source and set `Config.OverrideNotifications = false`:
 
 ### QBCore
 Replace the body of `QBCore.Functions.Notify` in `qb-core/client/functions.lua`:
@@ -116,9 +121,9 @@ Replace the body of `QBCore.Functions.Notify` in `qb-core/client/functions.lua`:
 ```lua
 function QBCore.Functions.Notify(text, textType, length)
     if type(text) == 'table' then
-        exports['w2f-notfy']:Notify({ title = text.caption, description = text.text, type = textType, duration = length })
+        exports['w2f-notify']:Notify({ title = text.caption, description = text.text, type = textType, duration = length })
     else
-        exports['w2f-notfy']:Notify({ description = text, type = textType, duration = length })
+        exports['w2f-notify']:Notify({ description = text, type = textType, duration = length })
     end
 end
 ```
@@ -128,12 +133,12 @@ Replace the body of `ESX.ShowNotification` in `es_extended/client/functions.lua`
 
 ```lua
 function ESX.ShowNotification(message, notifyType, length)
-    exports['w2f-notfy']:Notify({ description = message, type = notifyType, duration = length })
+    exports['w2f-notify']:Notify({ description = message, type = notifyType, duration = length })
 end
 ```
 
 ### Qbox / ox_lib
-Server-sent notifications travel over the `ox_lib:notify` event, which w2f-notfy picks up automatically — but ox_lib renders its own UI for the same event, so you'd see both. Either keep ox_lib's visuals (set `Config.OverrideNotifications = false`), or redirect `lib.notify` by editing `ox_lib/resource/interface/client/notify.lua` to forward to `exports['w2f-notfy']:Notify`.
+Server-sent notifications travel over the `ox_lib:notify` event, which w2f-notify picks up automatically — but ox_lib renders its own UI for the same event, so you'd see both. Either keep ox_lib's visuals (set `Config.OverrideNotifications = false`), or redirect `lib.notify` by editing `ox_lib/resource/interface/client/notify.lua` to forward to `exports['w2f-notify']:Notify`.
 
 ### Standalone
 Set `Config.Framework = 'standalone'` (or leave `auto` with no framework running) and use the exports/events directly.
