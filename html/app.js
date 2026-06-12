@@ -68,6 +68,29 @@ function formatText(str) {
         .replace(/\n/g, '<br>');
 }
 
+// parse any CSS color to [r, g, b] — avoids color-mix(), which older CEF builds lack
+const colorCtx = document.createElement('canvas').getContext('2d');
+function parseColor(color) {
+    colorCtx.fillStyle = '#60a5fa';
+    colorCtx.fillStyle = color;
+    const v = colorCtx.fillStyle;
+    if (v.startsWith('#')) {
+        return [parseInt(v.slice(1, 3), 16), parseInt(v.slice(3, 5), 16), parseInt(v.slice(5, 7), 16)];
+    }
+    const m = v.match(/[\d.]+/g);
+    return m ? [+m[0], +m[1], +m[2]] : [96, 165, 250];
+}
+
+function applyAccent(el, color) {
+    const [r, g, b] = parseColor(color);
+    el.style.setProperty('--nf-accent', `rgb(${r}, ${g}, ${b})`);
+    el.style.setProperty('--nf-accent-soft', `rgba(${r}, ${g}, ${b}, 0.14)`);
+    el.style.setProperty('--nf-accent-border', `rgba(${r}, ${g}, ${b}, 0.35)`);
+    el.style.setProperty('--nf-accent-glow', `rgba(${r}, ${g}, ${b}, 0.16)`);
+    const mix = (c) => Math.round(c + (255 - c) * 0.45);
+    el.style.setProperty('--nf-accent-bright', `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`);
+}
+
 function renderIcon(icon, accent, iconColor) {
     const wrap = document.createElement('div');
     wrap.className = 'notfy-icon';
@@ -90,7 +113,7 @@ function renderIcon(icon, accent, iconColor) {
 function buildCard(data) {
     const card = document.createElement('div');
     card.className = `notfy nf-enter-${data.animation.enter}`;
-    card.style.setProperty('--nf-accent', data.color);
+    applyAccent(card, data.color);
 
     const vec = SLIDE_VECTORS[data.position] || SLIDE_VECTORS['top-right'];
     card.style.setProperty('--slide-x', vec.x);
@@ -133,6 +156,7 @@ function buildCard(data) {
 }
 
 function show(data) {
+    if (!SLIDE_VECTORS[data.position]) data.position = 'top-right';
     applyTheme(data.theme);
     maxVisible = data.maxVisible || maxVisible;
     newestFirst = (data.newest || 'top') === 'top';
