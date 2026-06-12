@@ -1,0 +1,322 @@
+:root {
+    --nf-bg: rgba(13, 15, 22, 0.82);
+    --nf-blur: 14px;
+    --nf-radius: 14px;
+    --nf-width: 340px;
+    --nf-title-color: #f4f6fb;
+    --nf-body-color: #aab1c2;
+    --nf-font-title: "Archivo", "Segoe UI", sans-serif;
+    --nf-font-body: "Inter", "Segoe UI", sans-serif;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    overflow: hidden;
+    user-select: none;
+}
+
+/* ── Position containers ─────────────────────────────────────────── */
+
+.notfy-container {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 24px;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.notfy-container[data-pos="top-left"]      { top: 0; left: 0; }
+.notfy-container[data-pos="top-center"]    { top: 0; left: 50%; transform: translateX(-50%); align-items: center; }
+.notfy-container[data-pos="top-right"]     { top: 0; right: 0; align-items: flex-end; }
+.notfy-container[data-pos="center-left"]   { top: 50%; left: 0; transform: translateY(-50%); }
+.notfy-container[data-pos="center"]        { top: 50%; left: 50%; transform: translate(-50%, -50%); align-items: center; }
+.notfy-container[data-pos="center-right"]  { top: 50%; right: 0; transform: translateY(-50%); align-items: flex-end; }
+.notfy-container[data-pos="bottom-left"]   { bottom: 0; left: 0; justify-content: flex-end; }
+.notfy-container[data-pos="bottom-center"] { bottom: 0; left: 50%; transform: translateX(-50%); align-items: center; justify-content: flex-end; }
+.notfy-container[data-pos="bottom-right"]  { bottom: 0; right: 0; align-items: flex-end; justify-content: flex-end; }
+
+/* ── Card ─────────────────────────────────────────────────────────── */
+
+.notfy-wrap {
+    overflow: visible;
+    transition: height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+                margin 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.2s ease;
+}
+
+.notfy {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    width: var(--nf-width);
+    padding: 14px 16px 16px 14px;
+    background: var(--nf-bg);
+    backdrop-filter: blur(var(--nf-blur));
+    -webkit-backdrop-filter: blur(var(--nf-blur));
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: var(--nf-radius);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+    will-change: transform, opacity;
+}
+
+/* accent edge */
+.notfy::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 14%;
+    bottom: 14%;
+    width: 3px;
+    border-radius: 0 4px 4px 0;
+    background: var(--nf-accent);
+    box-shadow: 0 0 12px var(--nf-accent);
+}
+
+/* soft colored glow */
+.notfy.has-glow::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(120% 140% at 0% 50%, color-mix(in srgb, var(--nf-accent) 16%, transparent) 0%, transparent 55%);
+    pointer-events: none;
+}
+
+/* ── Icon ─────────────────────────────────────────────────────────── */
+
+.notfy-icon {
+    position: relative;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--nf-accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--nf-accent) 35%, transparent);
+    color: var(--nf-icon-color, var(--nf-accent));
+}
+
+.notfy-icon svg {
+    width: 19px;
+    height: 19px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.notfy-icon img {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+}
+
+/* animated stroke draw on entry */
+.notfy-icon svg path,
+.notfy-icon svg polyline,
+.notfy-icon svg line,
+.notfy-icon svg circle {
+    stroke-dasharray: 90;
+    stroke-dashoffset: 90;
+    animation: nf-draw 0.55s ease-out 0.18s forwards;
+}
+
+@keyframes nf-draw {
+    to { stroke-dashoffset: 0; }
+}
+
+/* pulsing ring */
+.notfy-icon.has-pulse::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    border: 1px solid var(--nf-accent);
+    animation: nf-pulse 1.8s ease-out 0.3s infinite;
+}
+
+@keyframes nf-pulse {
+    0%   { opacity: 0.7; transform: scale(1); }
+    70%  { opacity: 0;   transform: scale(1.35); }
+    100% { opacity: 0;   transform: scale(1.35); }
+}
+
+/* ── Content ──────────────────────────────────────────────────────── */
+
+.notfy-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notfy-title {
+    font-family: var(--nf-font-title);
+    font-size: 13.5px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--nf-title-color);
+    margin-bottom: 2px;
+}
+
+.notfy-desc {
+    font-family: var(--nf-font-body);
+    font-size: 12.5px;
+    font-weight: 400;
+    line-height: 1.45;
+    color: var(--nf-body-color);
+    overflow-wrap: break-word;
+}
+
+.notfy-desc strong {
+    color: var(--nf-title-color);
+    font-weight: 600;
+}
+
+/* ── Progress bar ─────────────────────────────────────────────────── */
+
+.notfy-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.notfy-progress-bar {
+    height: 100%;
+    width: 100%;
+    transform-origin: left;
+    background: linear-gradient(90deg, var(--nf-accent), color-mix(in srgb, var(--nf-accent) 55%, #ffffff));
+    box-shadow: 0 0 8px var(--nf-accent);
+    animation: nf-progress linear forwards;
+}
+
+@keyframes nf-progress {
+    from { transform: scaleX(1); }
+    to   { transform: scaleX(0); }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ENTER / EXIT ANIMATIONS
+   --slide-x / --slide-y are set by app.js based on the anchor edge
+   ══════════════════════════════════════════════════════════════════ */
+
+/* slide — direction aware */
+.nf-enter-slide { animation: nf-enter-slide 0.5s cubic-bezier(0.21, 1.02, 0.35, 1) both; }
+.nf-exit-slide  { animation: nf-exit-slide 0.4s cubic-bezier(0.55, 0, 0.85, 0.4) both; }
+
+@keyframes nf-enter-slide {
+    from { opacity: 0; transform: translate(var(--slide-x, 110%), var(--slide-y, 0)) scale(0.96); }
+    to   { opacity: 1; transform: translate(0, 0) scale(1); }
+}
+
+@keyframes nf-exit-slide {
+    from { opacity: 1; transform: translate(0, 0) scale(1); }
+    to   { opacity: 0; transform: translate(var(--slide-x, 110%), var(--slide-y, 0)) scale(0.96); }
+}
+
+/* fade */
+.nf-enter-fade { animation: nf-enter-fade 0.4s ease both; }
+.nf-exit-fade  { animation: nf-exit-fade 0.35s ease both; }
+
+@keyframes nf-enter-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes nf-exit-fade {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+}
+
+/* pop — springy overshoot */
+.nf-enter-pop { animation: nf-enter-pop 0.55s cubic-bezier(0.18, 1.4, 0.4, 1) both; }
+.nf-exit-pop  { animation: nf-exit-pop 0.3s cubic-bezier(0.5, 0, 0.75, 0.2) both; }
+
+@keyframes nf-enter-pop {
+    from { opacity: 0; transform: scale(0.55); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes nf-exit-pop {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(0.7); }
+}
+
+/* bounce — playful drop in */
+.nf-enter-bounce { animation: nf-enter-bounce 0.7s both; }
+.nf-exit-bounce  { animation: nf-exit-bounce 0.45s ease-in both; }
+
+@keyframes nf-enter-bounce {
+    0%   { opacity: 0; transform: translateY(-46px) scale(0.94); }
+    45%  { opacity: 1; transform: translateY(8px) scale(1.01); }
+    68%  { transform: translateY(-5px) scale(1); }
+    85%  { transform: translateY(2px); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes nf-exit-bounce {
+    0%   { opacity: 1; transform: translateY(0); }
+    25%  { transform: translateY(-10px); }
+    100% { opacity: 0; transform: translateY(46px) scale(0.94); }
+}
+
+/* flip — 3D rotation */
+.nf-enter-flip { animation: nf-enter-flip 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.15) both; transform-origin: center top; }
+.nf-exit-flip  { animation: nf-exit-flip 0.4s ease-in both; transform-origin: center top; }
+
+@keyframes nf-enter-flip {
+    from { opacity: 0; transform: perspective(700px) rotateX(-80deg); }
+    to   { opacity: 1; transform: perspective(700px) rotateX(0deg); }
+}
+
+@keyframes nf-exit-flip {
+    from { opacity: 1; transform: perspective(700px) rotateX(0deg); }
+    to   { opacity: 0; transform: perspective(700px) rotateX(70deg); }
+}
+
+/* glitch — cyberpunk clip-path tear */
+.nf-enter-glitch { animation: nf-enter-glitch 0.55s steps(12) both; }
+.nf-exit-glitch  { animation: nf-exit-glitch 0.4s steps(10) both; }
+
+@keyframes nf-enter-glitch {
+    0%   { opacity: 0; transform: translateX(18px) skewX(8deg);  clip-path: inset(40% 0 45% 0); filter: hue-rotate(40deg) saturate(2); }
+    15%  { opacity: 1; transform: translateX(-12px) skewX(-6deg); clip-path: inset(8% 0 70% 0); }
+    30%  { transform: translateX(8px) skewX(4deg);   clip-path: inset(60% 0 10% 0); filter: hue-rotate(-30deg); }
+    45%  { transform: translateX(-5px) skewX(-2deg); clip-path: inset(25% 0 40% 0); }
+    60%  { transform: translateX(3px);               clip-path: inset(0 0 0 0); filter: none; }
+    75%  { transform: translateX(-2px) skewX(1deg); }
+    100% { opacity: 1; transform: translateX(0) skewX(0); clip-path: inset(0 0 0 0); filter: none; }
+}
+
+@keyframes nf-exit-glitch {
+    0%   { opacity: 1; transform: translateX(0);    clip-path: inset(0 0 0 0); }
+    20%  { transform: translateX(-8px) skewX(-5deg); clip-path: inset(15% 0 55% 0); filter: hue-rotate(50deg); }
+    40%  { transform: translateX(10px) skewX(6deg);  clip-path: inset(55% 0 15% 0); }
+    60%  { transform: translateX(-12px);             clip-path: inset(30% 0 30% 0); filter: hue-rotate(-40deg) saturate(2.5); }
+    100% { opacity: 0; transform: translateX(20px) skewX(10deg); clip-path: inset(45% 0 45% 0); }
+}
+
+/* error shake — layered on the card content after entry */
+.nf-shake .notfy-icon {
+    animation: nf-shake 0.45s ease 0.45s;
+}
+
+@keyframes nf-shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-3px) rotate(-4deg); }
+    40% { transform: translateX(3px) rotate(4deg); }
+    60% { transform: translateX(-2px) rotate(-2deg); }
+    80% { transform: translateX(2px) rotate(2deg); }
+}
