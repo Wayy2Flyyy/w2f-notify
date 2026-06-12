@@ -1,46 +1,112 @@
 local counter = 0
 
--- ──────────────────────────────────────────────────────────────────────
--- Core
--- ──────────────────────────────────────────────────────────────────────
+local RESOURCE_EVENT = 'w2f-notify'
+local LEGACY_EVENT = 'w2f-notfy'
 
----Normalise any supported call signature into a full notification payload.
----@param data string|table message string or notification table
----@return table payload, table typeDef
-local function buildPayload(data)
-    if type(data) == 'string' then
-        data = { description = data }
+local VALID_POSITIONS = {
+    ['top-left'] = true,
+    ['top-center'] = true,
+    ['top-right'] = true,
+    ['center-left'] = true,
+    center = true,
+    ['center-right'] = true,
+    ['bottom-left'] = true,
+    ['bottom-center'] = true,
+    ['bottom-right'] = true,
+}
+
+local VALID_ANIMATIONS = {
+    slide = true,
+    pop = true,
+    bounce = true,
+    flip = true,
+    glitch = true,
+    fade = true,
+}
+
+local function shallowCopy(value)
+    if type(value) ~= 'table' then return value end
+
+    local copy = {}
+    for key, item in pairs(value) do
+        copy[key] = item
+    end
+    return copy
+end
+
+local function asNumber(value, fallback, minimum)
+    local number = tonumber(value)
+    if not number then return fallback end
+    if minimum and number < minimum then return minimum end
+    return math.floor(number)
+end
+
+local function normalizeAnimation(animation)
+    local enter = Config.Animation and Config.Animation.enter or 'slide'
+    local exit = Config.Animation and Config.Animation.exit or 'slide'
+
+    if type(animation) == 'string' then
+        enter = animation
+        exit = animation
+    elseif type(animation) == 'table' then
+        enter = animation.enter or enter
+        exit = animation.exit or exit
     end
 
-    local nType = data.type or 'info'
-    local typeDef = Config.Types[nType] or Config.Types.info
+    if not VALID_ANIMATIONS[enter] then enter = 'slide' end
+    if not VALID_ANIMATIONS[exit] then exit = 'slide' end
 
-    counter += 1
+    return { enter = enter, exit = exit }
+end
+
+local function normalizePosition(position)
+    position = position or Config.Position or 'top-right'
+    return VALID_POSITIONS[position] and position or 'top-right'
+end
+
+local function normalizeType(nType)
+    if type(nType) ~= 'string' or nType == '' then return 'info' end
+    return Config.Types[nType] and nType or 'info'
+end
+
+---Normalise any supported call signature into a full notification payload.
+---@param data string|table|nil message string or notification table
+---@return table payload, table typeDef
+local function buildPayload(data)
+    if type(data) == 'string' or type(data) == 'number' or type(data) == 'boolean' then
+        data = { description = tostring(data) }
+    elseif type(data) == 'table' then
+        data = shallowCopy(data)
+    else
+        data = { description = '' }
+    end
+
+    local nType = normalizeType(data.type)
+    local typeDef = Config.Types[nType] or Config.Types.info or {}
+
+    counter = counter + 1
     local id = data.id or ('w2f_%d'):format(counter)
 
     return {
-        id          = id,
+        id          = tostring(id),
         type        = nType,
         title       = data.title,
-        description = data.description or data.message or data.text,
-        duration    = data.duration or Config.Duration,
-        position    = data.position or Config.Position,
-        color       = data.color or typeDef.color,
-        icon        = data.icon or typeDef.icon,
+        description = data.description or data.message or data.text or data.caption or '',
+        duration    = asNumber(data.duration or data.length, Config.Duration or 5000, 0),
+        position    = normalizePosition(data.position),
+        color       = data.color or typeDef.color or '#60a5fa',
+        icon        = data.icon or typeDef.icon or 'bell',
         iconColor   = data.iconColor,
-        animation   = {
-            enter = (data.animation and data.animation.enter) or Config.Animation.enter,
-            exit  = (data.animation and data.animation.exit) or Config.Animation.exit,
-        },
-        progress    = data.progress == nil and Config.Progress or data.progress,
-        maxVisible  = Config.MaxVisible,
-        newest      = Config.Newest,
-        theme       = Config.Theme,
+        animation   = normalizeAnimation(data.animation),
+        progress    = data.progress == nil and Config.Progress or data.progress == true,
+        maxVisible  = asNumber(data.maxVisible or Config.MaxVisible, Config.MaxVisible or 6, 1),
+        newest      = data.newest == 'bottom' and 'bottom' or (Config.Newest == 'bottom' and 'bottom' or 'top'),
+        theme       = Config.Theme or {},
     }, typeDef
 end
 
 ---Show a notification.
----@param data string|table
+---@param data string|table|nil
 ---@return string id notification id, usable with Hide / Update
 local function notify(data)
     local payload, typeDef = buildPayload(data)
@@ -48,7 +114,7 @@ local function notify(data)
     SendNUIMessage({ action = 'notify', data = payload })
 
     local sound = (type(data) == 'table' and data.sound ~= nil) and data.sound or typeDef.sound
-    if Config.Sounds and sound then
+    if Config.Sounds and type(sound) == 'table' and sound.name and sound.ref then
         PlaySoundFrontend(-1, sound.name, sound.ref, true)
     end
 
@@ -57,10 +123,13 @@ end
 
 ---Update the contents of a visible notification in place.
 ---@param id string
----@param data table fields to change (title, description, type, color, icon, duration ...)
+---@param data table|string fields to change (title, description, type, color, icon, duration ...)
 local function update(id, data)
-    data = type(data) == 'table' and data or { description = data }
+    if not id then return end
+
+    data = type(data) == 'table' and shallowCopy(data) or { description = data }
     data.id = id
+
     local payload = buildPayload(data)
     SendNUIMessage({ action = 'update', data = payload })
 end
@@ -68,7 +137,8 @@ end
 ---Hide a notification early.
 ---@param id string
 local function hide(id)
-    SendNUIMessage({ action = 'hide', data = { id = id } })
+    if not id then return end
+    SendNUIMessage({ action = 'hide', data = { id = tostring(id) } })
 end
 
 ---Clear every visible & queued notification.
@@ -86,32 +156,45 @@ exports('Hide', hide)
 exports('Clear', clear)
 
 exports('Success', function(data)
-    data = type(data) == 'table' and data or { description = data }
+    data = type(data) == 'table' and shallowCopy(data) or { description = data }
     data.type = 'success'
     return notify(data)
 end)
 
 exports('Error', function(data)
-    data = type(data) == 'table' and data or { description = data }
+    data = type(data) == 'table' and shallowCopy(data) or { description = data }
     data.type = 'error'
     return notify(data)
 end)
 
 exports('Info', function(data)
-    data = type(data) == 'table' and data or { description = data }
+    data = type(data) == 'table' and shallowCopy(data) or { description = data }
     data.type = 'info'
     return notify(data)
 end)
 
 exports('Warning', function(data)
-    data = type(data) == 'table' and data or { description = data }
+    data = type(data) == 'table' and shallowCopy(data) or { description = data }
     data.type = 'warning'
     return notify(data)
 end)
 
-RegisterNetEvent('w2f-notfy:notify', notify)
-RegisterNetEvent('w2f-notfy:hide', hide)
-RegisterNetEvent('w2f-notfy:clear', clear)
+exports('Police', function(data)
+    data = type(data) == 'table' and shallowCopy(data) or { description = data }
+    data.type = 'police'
+    return notify(data)
+end)
+
+RegisterNetEvent(RESOURCE_EVENT .. ':notify', notify)
+RegisterNetEvent(RESOURCE_EVENT .. ':update', update)
+RegisterNetEvent(RESOURCE_EVENT .. ':hide', hide)
+RegisterNetEvent(RESOURCE_EVENT .. ':clear', clear)
+
+-- Backward-compatible typo aliases from the original release.
+RegisterNetEvent(LEGACY_EVENT .. ':notify', notify)
+RegisterNetEvent(LEGACY_EVENT .. ':update', update)
+RegisterNetEvent(LEGACY_EVENT .. ':hide', hide)
+RegisterNetEvent(LEGACY_EVENT .. ':clear', clear)
 
 -- ──────────────────────────────────────────────────────────────────────
 -- Framework bridge
@@ -154,6 +237,7 @@ CreateThread(function()
     if framework == 'qbox' then
         -- qbox routes everything through ox_lib's notify event
         RegisterNetEvent('ox_lib:notify', function(data)
+            data = type(data) == 'table' and data or { description = data }
             notify({
                 id          = data.id,
                 title       = data.title,
@@ -161,6 +245,7 @@ CreateThread(function()
                 type        = oxTypeMap[data.type] or data.type or 'info',
                 duration    = data.duration,
                 position    = data.position,
+                icon        = data.icon,
             })
         end)
     elseif framework == 'qb' then
@@ -168,7 +253,7 @@ CreateThread(function()
             local title, description
             if type(text) == 'table' then
                 title = text.caption
-                description = text.text
+                description = text.text or text.description
             else
                 description = text
             end
@@ -197,7 +282,7 @@ CreateThread(function()
     end
 
     if Config.Debug then
-        print(('^2[w2f-notfy]^7 started — framework bridge: ^3%s^7'):format(framework))
+        print(('^2[w2f-notify]^7 started — framework bridge: ^3%s^7'):format(framework))
     end
 end)
 
@@ -227,7 +312,7 @@ if Config.Debug then
 
         notify({
             type = nType,
-            title = 'w2f-notfy',
+            title = 'w2f-notify',
             description = anim
                 and ('Animation preview: **%s**'):format(anim)
                 or 'Single notification preview.',
